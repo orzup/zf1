@@ -188,10 +188,14 @@ class Zend_Json_Server extends Zend_Server_Abstract
         }
 
         // Handle request
-        $this->_handle();
+        $handleResponse = $this->_handle();
 
         // Get response
-        $response = $this->_getReadyResponse();
+        if ($handleResponse instanceof Zend_Json_Server_Error) {
+            $response = $this->getResponse()->setError($handleResponse);
+        } else {
+            $response = $this->_getReadyResponse();
+        }
 
         // Emit response?
         if ($this->autoEmitResponse()) {
@@ -501,7 +505,11 @@ class Zend_Json_Server extends Zend_Server_Abstract
      */
     protected function _handle()
     {
-        $request = $this->getRequest();
+        try {
+            $request = $this->getRequest();
+        } catch (Zend_Json_Exception $ex) {
+            return $this->fault('Parse Error', -32768);
+        }
 
         if (!$request->isMethodError() && (null === $request->getMethod())) {
             return $this->fault('Invalid Request', -32600);
