@@ -464,6 +464,18 @@ class Zend_Json_ServerTest extends PHPUnit_Framework_TestCase
         $server->loadFunctions($functions);
         $this->assertEquals($functions->toArray(), $server->getFunctions()->toArray());
     }
+
+    /**
+     * @group ZF-10715
+     */
+    public function testServerHandlesInvalidJsonResponseProperly()
+    {
+        $server = new Zend_Json_ServerTest_Server();
+        $server->setClass('Zend_Json_ServerTest_Foo')
+               ->setAutoEmitResponse( false );
+
+        $response = $server->handle();
+    }
 }
 
 /**
@@ -516,6 +528,53 @@ class Zend_Json_ServerTest_Foo
 function Zend_Json_ServerTest_FooFunc()
 {
     return true;
+}
+
+/**
+ * Invalid Request implementation
+ * @see ZF-10715
+ */
+class Zend_Json_ServerTest_Request_Invalid extends Zend_Json_Server_Request
+{
+    protected $_rawJson = null;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->_rawJson = 'This is invalid JSON';
+        $this->loadJson($this->_rawJson);
+    }
+
+    /**
+     * Retrieve raw JSON string
+     * @return string
+     */
+    public function getRawJson()
+    {
+        return $this->_rawJson;
+    }
+}
+
+/**
+ * Zend_Json_Server w/ getRequest() which injects test request object
+ * @see ZF-10715
+ */
+class Zend_Json_ServerTest_Server extends Zend_Json_Server
+{
+    /**
+     * Get JSON-RPC request object
+     *
+     * @return Zend_Json_Server_Request
+     */
+    public function getRequest()
+    {
+        if (null === ($request = $this->_request)) {
+            $this->setRequest(new Zend_Json_ServerTest_Request_Invalid());
+        }
+        return $this->_request;
+    }
 }
 
 // Call Zend_Json_ServerTest::main() if this source file is executed directly.
